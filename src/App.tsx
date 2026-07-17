@@ -1,15 +1,6 @@
 import {FormEvent, useEffect, useMemo, useState} from 'react'
 import {onAuthStateChanged, signInWithEmailAndPassword, signOut, User} from 'firebase/auth'
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  writeBatch,
-} from 'firebase/firestore'
+import {collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch} from 'firebase/firestore'
 import {auth, db} from './firebase'
 
 type Pessoa = {
@@ -51,30 +42,17 @@ type FormularioPessoa = {
   conjugeId: string
   novoPai: CadastroRapido
   novaMae: CadastroRapido
+  novoConjuge: CadastroRapido
 }
 
-const cadastroRapidoInicial: CadastroRapido = {
-  ativo: false,
-  nome: '',
-  sobrenome: '',
-  viva: true,
-}
-
+const cadastroRapidoInicial: CadastroRapido = {ativo: false, nome: '', sobrenome: '', viva: true}
 const formularioInicial: FormularioPessoa = {
-  nome: '',
-  sobrenome: '',
-  nascimento: '',
-  falecimento: '',
-  viva: true,
-  cidadeNatal: '',
-  cidadeAtual: '',
-  bairro: '',
-  paiId: '',
-  maeId: '',
-  casada: false,
-  conjugeId: '',
+  nome: '', sobrenome: '', nascimento: '', falecimento: '', viva: true,
+  cidadeNatal: '', cidadeAtual: '', bairro: '', paiId: '', maeId: '',
+  casada: false, conjugeId: '',
   novoPai: {...cadastroRapidoInicial},
   novaMae: {...cadastroRapidoInicial},
+  novoConjuge: {...cadastroRapidoInicial},
 }
 
 function nomeCompleto(pessoa?: Pessoa) {
@@ -87,56 +65,6 @@ function formatarData(data?: string) {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : data
 }
 
-type NoArvoreProps = {
-  pessoa: Pessoa
-  pessoas: Pessoa[]
-  caminho?: Set<string>
-}
-
-function NoArvore({pessoa, pessoas, caminho = new Set()}: NoArvoreProps) {
-  if (caminho.has(pessoa.id)) {
-    return <div className="no-arvore aviso-ciclo">Vínculo circular detectado</div>
-  }
-
-  const novoCaminho = new Set(caminho)
-  novoCaminho.add(pessoa.id)
-  const conjuge = pessoa.conjugeId ? pessoas.find(item => item.id === pessoa.conjugeId) : undefined
-  const filhos = pessoas.filter(item => item.paiId === pessoa.id || item.maeId === pessoa.id)
-  const filhosUnicos = filhos.filter((filho, indice, lista) => lista.findIndex(item => item.id === filho.id) === indice)
-
-  return (
-    <div className="ramo-arvore">
-      <div className="casal-arvore">
-        <article className="no-arvore">
-          <strong>{nomeCompleto(pessoa)}</strong>
-          {pessoa.nascimento && <span>Nasc. {formatarData(pessoa.nascimento)}</span>}
-          {pessoa.cidadeNatal && <span>Natural de {pessoa.cidadeNatal}</span>}
-          {pessoa.cidadeAtual && <span>Atual: {pessoa.cidadeAtual}</span>}
-        </article>
-        {conjuge && (
-          <>
-            <span className="uniao" aria-label="casado com">♥</span>
-            <article className="no-arvore conjuge">
-              <strong>{nomeCompleto(conjuge)}</strong>
-              {conjuge.nascimento && <span>Nasc. {formatarData(conjuge.nascimento)}</span>}
-              {conjuge.cidadeNatal && <span>Natural de {conjuge.cidadeNatal}</span>}
-              {conjuge.cidadeAtual && <span>Atual: {conjuge.cidadeAtual}</span>}
-            </article>
-          </>
-        )}
-      </div>
-
-      {filhosUnicos.length > 0 && (
-        <div className="descendentes">
-          {filhosUnicos.map(filho => (
-            <NoArvore key={filho.id} pessoa={filho} pessoas={pessoas} caminho={novoCaminho} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function App() {
   const [usuario, setUsuario] = useState<User | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -145,7 +73,6 @@ export default function App() {
   const [pessoas, setPessoas] = useState<Pessoa[]>([])
   const [pessoaEmEdicao, setPessoaEmEdicao] = useState<string | null>(null)
   const [formulario, setFormulario] = useState<FormularioPessoa>(formularioInicial)
-  const visualizandoArvore = new URLSearchParams(window.location.search).get('view') === 'tree'
 
   useEffect(() => onAuthStateChanged(auth, user => {
     setUsuario(user)
@@ -157,7 +84,6 @@ export default function App() {
       setPessoas([])
       return
     }
-
     const consulta = query(collection(db, 'pessoas'), orderBy('nome'))
     return onSnapshot(
       consulta,
@@ -171,18 +97,6 @@ export default function App() {
     [pessoas, pessoaEmEdicao],
   )
 
-  const raizesDaArvore = useMemo(() => {
-    const ids = new Set(pessoas.map(pessoa => pessoa.id))
-    const raizes = pessoas.filter(pessoa => (!pessoa.paiId || !ids.has(pessoa.paiId)) && (!pessoa.maeId || !ids.has(pessoa.maeId)))
-    const idsConjugesJaIncluidos = new Set<string>()
-
-    return raizes.filter(pessoa => {
-      if (idsConjugesJaIncluidos.has(pessoa.id)) return false
-      if (pessoa.conjugeId) idsConjugesJaIncluidos.add(pessoa.conjugeId)
-      return true
-    })
-  }, [pessoas])
-
   function nomeCompletoPorId(id?: string) {
     return nomeCompleto(pessoas.find(item => item.id === id))
   }
@@ -195,7 +109,6 @@ export default function App() {
     event.preventDefault()
     setErro('')
     const dados = new FormData(event.currentTarget)
-
     try {
       await signInWithEmailAndPassword(auth, String(dados.get('email')), String(dados.get('senha')))
     } catch {
@@ -204,7 +117,12 @@ export default function App() {
   }
 
   function limparFormulario() {
-    setFormulario({...formularioInicial, novoPai: {...cadastroRapidoInicial}, novaMae: {...cadastroRapidoInicial}})
+    setFormulario({
+      ...formularioInicial,
+      novoPai: {...cadastroRapidoInicial},
+      novaMae: {...cadastroRapidoInicial},
+      novoConjuge: {...cadastroRapidoInicial},
+    })
     setPessoaEmEdicao(null)
     setErro('')
   }
@@ -226,6 +144,7 @@ export default function App() {
       conjugeId: pessoa.conjugeId || '',
       novoPai: {...cadastroRapidoInicial},
       novaMae: {...cadastroRapidoInicial},
+      novoConjuge: {...cadastroRapidoInicial},
     })
     setErro('')
     window.scrollTo({top: 0, behavior: 'smooth'})
@@ -233,49 +152,40 @@ export default function App() {
 
   function validarFormulario() {
     if (formulario.paiId && formulario.paiId === formulario.maeId) return 'Pai e mãe não podem ser a mesma pessoa.'
-    if (formulario.casada && !formulario.conjugeId) return 'Selecione o cônjuge ou desmarque a opção “Pessoa casada”.'
+    if (formulario.casada && !formulario.conjugeId && !formulario.novoConjuge.ativo) return 'Selecione ou cadastre o cônjuge.'
     if (formulario.conjugeId && [formulario.paiId, formulario.maeId].includes(formulario.conjugeId)) return 'O cônjuge não pode ser a mesma pessoa cadastrada como pai ou mãe.'
     if (formulario.novoPai.ativo && (!formulario.novoPai.nome.trim() || !formulario.novoPai.sobrenome.trim())) return 'Informe nome e sobrenome do novo pai.'
     if (formulario.novaMae.ativo && (!formulario.novaMae.nome.trim() || !formulario.novaMae.sobrenome.trim())) return 'Informe nome e sobrenome da nova mãe.'
+    if (formulario.novoConjuge.ativo && (!formulario.novoConjuge.nome.trim() || !formulario.novoConjuge.sobrenome.trim())) return 'Informe nome e sobrenome do novo cônjuge.'
     return ''
   }
 
   async function salvarPessoa(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErro('')
-
-    const mensagemValidacao = validarFormulario()
-    if (mensagemValidacao) {
-      setErro(mensagemValidacao)
+    const validacao = validarFormulario()
+    if (validacao) {
+      setErro(validacao)
       return
     }
 
     setSalvando(true)
-
     try {
       const batch = writeBatch(db)
       let paiId = formulario.paiId
       let maeId = formulario.maeId
+      const referenciaPessoa = pessoaEmEdicao ? doc(db, 'pessoas', pessoaEmEdicao) : doc(collection(db, 'pessoas'))
 
-      const criarParenteRapido = (cadastro: CadastroRapido) => {
+      const criarParenteRapido = (cadastro: CadastroRapido, dadosExtras: Record<string, unknown> = {}) => {
         const referencia = doc(collection(db, 'pessoas'))
         batch.set(referencia, {
-          nome: cadastro.nome.trim(),
-          sobrenome: cadastro.sobrenome.trim(),
-          nascimento: '',
-          falecimento: '',
-          viva: cadastro.viva,
-          cidadeNatal: '',
-          cidadeAtual: '',
-          bairro: '',
-          paiId: '',
-          maeId: '',
-          casada: false,
-          conjugeId: '',
-          criadoPor: usuario?.uid,
-          criadoEm: serverTimestamp(),
-          atualizadoPor: usuario?.uid,
-          atualizadoEm: serverTimestamp(),
+          nome: cadastro.nome.trim(), sobrenome: cadastro.sobrenome.trim(),
+          nascimento: '', falecimento: '', viva: cadastro.viva,
+          cidadeNatal: '', cidadeAtual: '', bairro: '', paiId: '', maeId: '',
+          casada: false, conjugeId: '',
+          criadoPor: usuario?.uid, criadoEm: serverTimestamp(),
+          atualizadoPor: usuario?.uid, atualizadoEm: serverTimestamp(),
+          ...dadosExtras,
         })
         return referencia.id
       }
@@ -283,22 +193,26 @@ export default function App() {
       if (formulario.novoPai.ativo) paiId = criarParenteRapido(formulario.novoPai)
       if (formulario.novaMae.ativo) maeId = criarParenteRapido(formulario.novaMae)
 
-      const referenciaPessoa = pessoaEmEdicao ? doc(db, 'pessoas', pessoaEmEdicao) : doc(collection(db, 'pessoas'))
       const pessoaAnterior = pessoaEmEdicao ? pessoas.find(pessoa => pessoa.id === pessoaEmEdicao) : undefined
       const conjugeAnteriorId = pessoaAnterior?.conjugeId || ''
-      const novoConjugeId = formulario.casada ? formulario.conjugeId : ''
+      let novoConjugeId = formulario.casada ? formulario.conjugeId : ''
+
+      if (formulario.casada && formulario.novoConjuge.ativo) {
+        novoConjugeId = criarParenteRapido(formulario.novoConjuge, {
+          casada: true,
+          conjugeId: referenciaPessoa.id,
+        })
+      }
 
       const dadosPessoa = {
-        nome: formulario.nome.trim(),
-        sobrenome: formulario.sobrenome.trim(),
+        nome: formulario.nome.trim(), sobrenome: formulario.sobrenome.trim(),
         nascimento: formulario.nascimento,
         falecimento: formulario.viva ? '' : formulario.falecimento,
         viva: formulario.viva,
         cidadeNatal: formulario.cidadeNatal.trim(),
         cidadeAtual: formulario.cidadeAtual.trim(),
         bairro: formulario.bairro.trim(),
-        paiId,
-        maeId,
+        paiId, maeId,
         casada: formulario.casada,
         conjugeId: novoConjugeId,
         atualizadoPor: usuario?.uid,
@@ -310,22 +224,17 @@ export default function App() {
 
       if (conjugeAnteriorId && conjugeAnteriorId !== novoConjugeId) {
         batch.update(doc(db, 'pessoas', conjugeAnteriorId), {
-          casada: false,
-          conjugeId: '',
-          atualizadoPor: usuario?.uid,
-          atualizadoEm: serverTimestamp(),
+          casada: false, conjugeId: '',
+          atualizadoPor: usuario?.uid, atualizadoEm: serverTimestamp(),
         })
       }
 
-      if (novoConjugeId) {
+      if (novoConjugeId && !formulario.novoConjuge.ativo) {
         const conjugeSelecionado = pessoas.find(pessoa => pessoa.id === novoConjugeId)
         if (conjugeSelecionado?.conjugeId && conjugeSelecionado.conjugeId !== referenciaPessoa.id) throw new Error('Cônjuge já vinculado')
-
         batch.update(doc(db, 'pessoas', novoConjugeId), {
-          casada: true,
-          conjugeId: referenciaPessoa.id,
-          atualizadoPor: usuario?.uid,
-          atualizadoEm: serverTimestamp(),
+          casada: true, conjugeId: referenciaPessoa.id,
+          atualizadoPor: usuario?.uid, atualizadoEm: serverTimestamp(),
         })
       }
 
@@ -351,8 +260,6 @@ export default function App() {
       return
     }
     if (!window.confirm(`Deseja realmente excluir ${nomeCompleto(pessoa)}? Esta ação não poderá ser desfeita.`)) return
-
-    setErro('')
     try {
       await deleteDoc(doc(db, 'pessoas', pessoa.id))
       if (pessoaEmEdicao === pessoa.id) limparFormulario()
@@ -381,31 +288,12 @@ export default function App() {
     )
   }
 
-  if (visualizandoArvore) {
-    return (
-      <main className="pagina-arvore">
-        <header>
-          <div><span className="marca">Família Wingert</span><h1>Visualização da árvore</h1></div>
-          <div className="acoes-cabecalho">
-            <a className="botao-link secundario" href="/">Voltar ao cadastro</a>
-            <button className="secundario" onClick={() => signOut(auth)}>Sair</button>
-          </div>
-        </header>
-        <section className="area-arvore">
-          {pessoas.length === 0 ? <p>Nenhuma pessoa cadastrada ainda.</p> : raizesDaArvore.map(raiz => (
-            <NoArvore key={raiz.id} pessoa={raiz} pessoas={pessoas} />
-          ))}
-        </section>
-      </main>
-    )
-  }
-
   return (
     <main>
       <header>
         <div><span className="marca">Família Wingert</span><h1>Árvore genealógica</h1></div>
         <div className="acoes-cabecalho">
-          <a className="botao-link" href="/?view=tree" target="_blank" rel="noreferrer">Visualizar árvore</a>
+          <a className="botao-link" href="/arvore-lateral.html" target="_blank" rel="noreferrer">Visualizar árvore</a>
           <button className="secundario" onClick={() => signOut(auth)}>Sair</button>
         </div>
       </header>
@@ -418,9 +306,9 @@ export default function App() {
             <label>Sobrenome<input value={formulario.sobrenome} onChange={event => setFormulario({...formulario, sobrenome: event.target.value})} required /></label>
             <label>Nascimento<input type="date" value={formulario.nascimento} onChange={event => setFormulario({...formulario, nascimento: event.target.value})} /></label>
             <label>Falecimento<input type="date" value={formulario.falecimento} disabled={formulario.viva} onChange={event => setFormulario({...formulario, falecimento: event.target.value})} /></label>
-            <label>Cidade natal (opcional)<input value={formulario.cidadeNatal} onChange={event => setFormulario({...formulario, cidadeNatal: event.target.value})} placeholder="Ex.: Dois Irmãos" /></label>
-            <label>Cidade atual (opcional)<input value={formulario.cidadeAtual} onChange={event => setFormulario({...formulario, cidadeAtual: event.target.value})} placeholder="Ex.: Porto Alegre" /></label>
-            <label className="campo-largo">Bairro atual (opcional)<input value={formulario.bairro} onChange={event => setFormulario({...formulario, bairro: event.target.value})} placeholder="Ex.: Centro" /></label>
+            <label>Cidade natal (opcional)<input value={formulario.cidadeNatal} onChange={event => setFormulario({...formulario, cidadeNatal: event.target.value})} /></label>
+            <label>Cidade atual (opcional)<input value={formulario.cidadeAtual} onChange={event => setFormulario({...formulario, cidadeAtual: event.target.value})} /></label>
+            <label className="campo-largo">Bairro atual (opcional)<input value={formulario.bairro} onChange={event => setFormulario({...formulario, bairro: event.target.value})} /></label>
 
             <fieldset className="grupo-vinculo">
               <legend>Pai</legend>
@@ -437,8 +325,14 @@ export default function App() {
             </fieldset>
 
             <label className="checkbox"><input type="checkbox" checked={formulario.viva} onChange={event => setFormulario({...formulario, viva: event.target.checked, falecimento: event.target.checked ? '' : formulario.falecimento})} />Pessoa viva</label>
-            <label className="checkbox"><input type="checkbox" checked={formulario.casada} onChange={event => setFormulario({...formulario, casada: event.target.checked, conjugeId: event.target.checked ? formulario.conjugeId : ''})} />Pessoa casada</label>
-            {formulario.casada && <label className="campo-largo">Cônjuge<select value={formulario.conjugeId} onChange={event => setFormulario({...formulario, conjugeId: event.target.value})} required><option value="">Selecione o cônjuge</option>{pessoasDisponiveis.map(pessoa => <option key={pessoa.id} value={pessoa.id}>{nomeCompleto(pessoa)}</option>)}</select></label>}
+            <label className="checkbox"><input type="checkbox" checked={formulario.casada} onChange={event => setFormulario({...formulario, casada: event.target.checked, conjugeId: event.target.checked ? formulario.conjugeId : '', novoConjuge: event.target.checked ? formulario.novoConjuge : {...cadastroRapidoInicial}})} />Pessoa casada</label>
+
+            {formulario.casada && <fieldset className="grupo-vinculo campo-largo">
+              <legend>Cônjuge</legend>
+              <label>Selecionar pessoa cadastrada<select value={formulario.conjugeId} disabled={formulario.novoConjuge.ativo} onChange={event => setFormulario({...formulario, conjugeId: event.target.value})}><option value="">Selecione o cônjuge</option>{pessoasDisponiveis.map(pessoa => <option key={pessoa.id} value={pessoa.id}>{nomeCompleto(pessoa)}</option>)}</select></label>
+              <label className="checkbox"><input type="checkbox" checked={formulario.novoConjuge.ativo} onChange={event => setFormulario({...formulario, conjugeId: '', novoConjuge: {...formulario.novoConjuge, ativo: event.target.checked}})} />Cadastrar um novo cônjuge agora</label>
+              {formulario.novoConjuge.ativo && <div className="cadastro-rapido"><label>Nome do cônjuge<input value={formulario.novoConjuge.nome} onChange={event => setFormulario({...formulario, novoConjuge: {...formulario.novoConjuge, nome: event.target.value}})} required /></label><label>Sobrenome do cônjuge<input value={formulario.novoConjuge.sobrenome} onChange={event => setFormulario({...formulario, novoConjuge: {...formulario.novoConjuge, sobrenome: event.target.value}})} required /></label><label className="checkbox"><input type="checkbox" checked={formulario.novoConjuge.viva} onChange={event => setFormulario({...formulario, novoConjuge: {...formulario.novoConjuge, viva: event.target.checked}})} />Pessoa viva</label></div>}
+            </fieldset>}
 
             <div className="acoes-formulario">
               {pessoaEmEdicao && <button type="button" className="botao-neutro" onClick={limparFormulario}>Cancelar</button>}
