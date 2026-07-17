@@ -11,12 +11,12 @@
 <body>
 <header><div><span class="marca">Família Wingert</span><h1>Visualização da árvore</h1></div><div class="acoes"><a href="/">Voltar ao cadastro</a><button id="sair" type="button">Sair</button></div></header>
 <section class="toolbar"><label>Pessoa ou núcleo inicial<select id="foco"><option value="">Árvore completa</option></select></label><button id="imprimir" type="button" style="background:#214c3b;border-color:#214c3b">Imprimir / salvar PDF</button><span class="status" id="status">Carregando…</span></section>
-<p class="legenda">Cada linha liga os pais diretamente ao filho correto dentro do casal.</p>
+<p class="legenda">As linhas são reorganizadas para reduzir cruzamentos. Cada cor representa um núcleo de pais. ★ nascimento · ✝ falecimento.</p>
 <main id="viewport"><div id="canvas"><svg id="linhas" aria-hidden="true"></svg><div id="geracoes"></div></div></main>
 <script src="/__/firebase/11.10.0/firebase-app-compat.js"></script>
 <script src="/__/firebase/11.10.0/firebase-auth-compat.js"></script>
 <script src="/__/firebase/11.10.0/firebase-firestore-compat.js"></script>
 <script src="/__/firebase/init.js"></script>
-<script src="/arvore-lateral.js"></script>
+<script src="/arvore-organizada.js"></script>
 </body>
 </html>
