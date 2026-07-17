@@ -1,4 +1,4 @@
-import {FormEvent, useEffect, useState} from 'react'
+import {FormEvent, useEffect, useMemo, useState} from 'react'
 import {onAuthStateChanged, signInWithEmailAndPassword, signOut, User} from 'firebase/auth'
 import {
   addDoc,
@@ -20,6 +20,10 @@ type Pessoa = {
   nascimento?: string
   falecimento?: string
   viva: boolean
+  cidade?: string
+  bairro?: string
+  paiId?: string
+  maeId?: string
 }
 
 type FormularioPessoa = {
@@ -28,6 +32,10 @@ type FormularioPessoa = {
   nascimento: string
   falecimento: string
   viva: boolean
+  cidade: string
+  bairro: string
+  paiId: string
+  maeId: string
 }
 
 const formularioInicial: FormularioPessoa = {
@@ -36,6 +44,10 @@ const formularioInicial: FormularioPessoa = {
   nascimento: '',
   falecimento: '',
   viva: true,
+  cidade: '',
+  bairro: '',
+  paiId: '',
+  maeId: '',
 }
 
 export default function App() {
@@ -68,6 +80,21 @@ export default function App() {
     )
   }, [usuario])
 
+  const pessoasDisponiveisComoPais = useMemo(
+    () => pessoas.filter(pessoa => pessoa.id !== pessoaEmEdicao),
+    [pessoas, pessoaEmEdicao],
+  )
+
+  function nomeCompletoPorId(id?: string) {
+    if (!id) return ''
+    const pessoa = pessoas.find(item => item.id === id)
+    return pessoa ? `${pessoa.nome} ${pessoa.sobrenome}` : 'Pessoa não encontrada'
+  }
+
+  function filhosDe(pessoaId: string) {
+    return pessoas.filter(pessoa => pessoa.paiId === pessoaId || pessoa.maeId === pessoaId)
+  }
+
   async function entrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErro('')
@@ -98,6 +125,10 @@ export default function App() {
       nascimento: pessoa.nascimento || '',
       falecimento: pessoa.falecimento || '',
       viva: pessoa.viva,
+      cidade: pessoa.cidade || '',
+      bairro: pessoa.bairro || '',
+      paiId: pessoa.paiId || '',
+      maeId: pessoa.maeId || '',
     })
     setErro('')
     window.scrollTo({top: 0, behavior: 'smooth'})
@@ -106,6 +137,12 @@ export default function App() {
   async function salvarPessoa(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErro('')
+
+    if (formulario.paiId && formulario.paiId === formulario.maeId) {
+      setErro('Pai e mãe não podem ser a mesma pessoa.')
+      return
+    }
+
     setSalvando(true)
 
     const dadosPessoa = {
@@ -114,6 +151,10 @@ export default function App() {
       nascimento: formulario.nascimento,
       falecimento: formulario.viva ? '' : formulario.falecimento,
       viva: formulario.viva,
+      cidade: formulario.cidade.trim(),
+      bairro: formulario.bairro.trim(),
+      paiId: formulario.paiId || '',
+      maeId: formulario.maeId || '',
       atualizadoPor: usuario?.uid,
       atualizadoEm: serverTimestamp(),
     }
@@ -137,6 +178,14 @@ export default function App() {
   }
 
   async function excluirPessoa(pessoa: Pessoa) {
+    const filhos = filhosDe(pessoa.id)
+    if (filhos.length > 0) {
+      setErro(
+        `${pessoa.nome} ${pessoa.sobrenome} possui ${filhos.length} vínculo(s) como pai ou mãe. Remova esses vínculos antes de excluir.`,
+      )
+      return
+    }
+
     const confirmou = window.confirm(
       `Deseja realmente excluir ${pessoa.nome} ${pessoa.sobrenome}? Esta ação não poderá ser desfeita.`,
     )
@@ -216,6 +265,46 @@ export default function App() {
                 onChange={event => setFormulario({...formulario, falecimento: event.target.value})}
               />
             </label>
+            <label>
+              Cidade (opcional)
+              <input
+                value={formulario.cidade}
+                onChange={event => setFormulario({...formulario, cidade: event.target.value})}
+                placeholder="Ex.: Dois Irmãos"
+              />
+            </label>
+            <label>
+              Bairro (opcional)
+              <input
+                value={formulario.bairro}
+                onChange={event => setFormulario({...formulario, bairro: event.target.value})}
+                placeholder="Ex.: Centro"
+              />
+            </label>
+            <label>
+              Pai (opcional)
+              <select
+                value={formulario.paiId}
+                onChange={event => setFormulario({...formulario, paiId: event.target.value})}
+              >
+                <option value="">Não informado</option>
+                {pessoasDisponiveisComoPais.map(pessoa => (
+                  <option key={pessoa.id} value={pessoa.id}>{pessoa.nome} {pessoa.sobrenome}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Mãe (opcional)
+              <select
+                value={formulario.maeId}
+                onChange={event => setFormulario({...formulario, maeId: event.target.value})}
+              >
+                <option value="">Não informada</option>
+                {pessoasDisponiveisComoPais.map(pessoa => (
+                  <option key={pessoa.id} value={pessoa.id}>{pessoa.nome} {pessoa.sobrenome}</option>
+                ))}
+              </select>
+            </label>
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -246,25 +335,40 @@ export default function App() {
           <div className="titulo-lista"><h2>Pessoas cadastradas</h2><span>{pessoas.length}</span></div>
           {pessoas.length === 0 ? <p>Nenhuma pessoa cadastrada ainda.</p> : (
             <div className="lista">
-              {pessoas.map(pessoa => (
-                <article key={pessoa.id}>
-                  <div className="dados-pessoa">
-                    <strong>{pessoa.nome} {pessoa.sobrenome}</strong>
-                    <span>
-                      {pessoa.nascimento || 'Nascimento não informado'}
-                      {!pessoa.viva && pessoa.falecimento ? ` — ${pessoa.falecimento}` : ''}
-                    </span>
-                  </div>
-                  <div className="acoes-pessoa">
-                    <button type="button" className="botao-editar" onClick={() => editarPessoa(pessoa)}>
-                      Editar
-                    </button>
-                    <button type="button" className="botao-excluir" onClick={() => excluirPessoa(pessoa)}>
-                      Excluir
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {pessoas.map(pessoa => {
+                const filhos = filhosDe(pessoa.id)
+                const local = [pessoa.bairro, pessoa.cidade].filter(Boolean).join(', ')
+
+                return (
+                  <article key={pessoa.id}>
+                    <div className="dados-pessoa">
+                      <strong>{pessoa.nome} {pessoa.sobrenome}</strong>
+                      <span>
+                        {pessoa.nascimento || 'Nascimento não informado'}
+                        {!pessoa.viva && pessoa.falecimento ? ` — ${pessoa.falecimento}` : ''}
+                      </span>
+                      {local && <span>Local: {local}</span>}
+                      {(pessoa.paiId || pessoa.maeId) && (
+                        <span>
+                          Pais: {pessoa.paiId ? nomeCompletoPorId(pessoa.paiId) : 'não informado'} /{' '}
+                          {pessoa.maeId ? nomeCompletoPorId(pessoa.maeId) : 'não informada'}
+                        </span>
+                      )}
+                      {filhos.length > 0 && (
+                        <span>Filhos: {filhos.map(filho => `${filho.nome} ${filho.sobrenome}`).join(', ')}</span>
+                      )}
+                    </div>
+                    <div className="acoes-pessoa">
+                      <button type="button" className="botao-editar" onClick={() => editarPessoa(pessoa)}>
+                        Editar
+                      </button>
+                      <button type="button" className="botao-excluir" onClick={() => excluirPessoa(pessoa)}>
+                        Excluir
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           )}
         </section>
