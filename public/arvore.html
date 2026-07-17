@@ -108,38 +108,62 @@
       }))
 
       const alvoId = foco.value
-      const rendered = new Set()
+      const unioesRenderizadas = new Set()
+      const pessoasRenderizadas = new Set()
 
       function ramoDaUniao(uniao, caminho = new Set()) {
-        if (!uniao || caminho.has(uniao.id) || rendered.has(uniao.id)) return null
-        rendered.add(uniao.id)
+        if (!uniao || caminho.has(uniao.id) || unioesRenderizadas.has(uniao.id)) return null
+        unioesRenderizadas.add(uniao.id)
         const novoCaminho = new Set(caminho).add(uniao.id)
         const ramo = document.createElement('section')
         ramo.className = 'ramo'
         const unidade = document.createElement('div')
         unidade.className = 'unidade'
         uniao.parceiros.forEach((id, indice) => {
-          if (indice) { const coracao = document.createElement('span'); coracao.className='uniao'; coracao.textContent='♥'; unidade.append(coracao) }
+          if (indice) {
+            const coracao = document.createElement('span')
+            coracao.className = 'uniao'
+            coracao.textContent = '♥'
+            unidade.append(coracao)
+          }
           const pessoa = porId(id)
-          if (pessoa) unidade.append(cartao(pessoa, indice > 0))
+          if (pessoa) {
+            pessoasRenderizadas.add(pessoa.id)
+            unidade.append(cartao(pessoa, indice > 0))
+          }
         })
         ramo.append(unidade)
 
         const filhosElementos = []
         for (const filhoId of [...new Set(uniao.filhos)]) {
+          if (pessoasRenderizadas.has(filhoId)) continue
+
           const unioesFilho = (uniaoPorPessoa.get(filhoId) || []).filter(item => item.id !== uniao.id)
           let filhoRamo = null
+
           if (unioesFilho.length) filhoRamo = ramoDaUniao(unioesFilho[0], novoCaminho)
+
           if (!filhoRamo) {
             const filho = porId(filhoId)
-            if (filho) { filhoRamo = document.createElement('section'); filhoRamo.className='ramo'; const unidadeFilho=document.createElement('div'); unidadeFilho.className='unidade'; unidadeFilho.append(cartao(filho)); filhoRamo.append(unidadeFilho) }
+            if (filho && !pessoasRenderizadas.has(filho.id)) {
+              pessoasRenderizadas.add(filho.id)
+              filhoRamo = document.createElement('section')
+              filhoRamo.className = 'ramo'
+              const unidadeFilho = document.createElement('div')
+              unidadeFilho.className = 'unidade'
+              unidadeFilho.append(cartao(filho))
+              filhoRamo.append(unidadeFilho)
+            }
           }
+
           if (filhoRamo) filhosElementos.push(filhoRamo)
         }
+
         if (filhosElementos.length) {
           const filhos = document.createElement('div')
           filhos.className = `filhos${filhosElementos.length > 1 ? ' com-varios' : ''}`
-          filhos.style.setProperty('--inicio','0px'); filhos.style.setProperty('--fim','0px')
+          filhos.style.setProperty('--inicio', '0px')
+          filhos.style.setProperty('--fim', '0px')
           filhosElementos.forEach(el => filhos.append(el))
           ramo.append(filhos)
         }
@@ -158,11 +182,21 @@
 
       const floresta = document.createElement('div')
       floresta.className = 'floresta'
-      raizes.forEach(uniao => { const ramo = ramoDaUniao(uniao); if (ramo) floresta.append(ramo) })
+      raizes.forEach(uniao => {
+        const ramo = ramoDaUniao(uniao)
+        if (ramo) floresta.append(ramo)
+      })
 
       for (const pessoa of pessoas) {
-        if ([...rendered].some(chave => chave.split('|').includes(pessoa.id))) continue
-        const unidade = document.createElement('section'); unidade.className='ramo'; const linha=document.createElement('div'); linha.className='unidade'; linha.append(cartao(pessoa)); unidade.append(linha); floresta.append(unidade)
+        if (pessoasRenderizadas.has(pessoa.id)) continue
+        pessoasRenderizadas.add(pessoa.id)
+        const unidade = document.createElement('section')
+        unidade.className = 'ramo'
+        const linha = document.createElement('div')
+        linha.className = 'unidade'
+        linha.append(cartao(pessoa))
+        unidade.append(linha)
+        floresta.append(unidade)
       }
 
       if (!floresta.children.length) arvore.innerHTML = '<div class="aviso">Ainda não há vínculos suficientes para desenhar a árvore.</div>'
@@ -173,14 +207,22 @@
     onAuthStateChanged(auth, async usuario => {
       if (!usuario) { location.href = '/'; return }
       try {
-        const resultado = await getDocs(query(collection(db,'pessoas'), orderBy('nome')))
-        pessoas = resultado.docs.map(doc => ({id:doc.id, ...doc.data()}))
-        pessoas.forEach(p => { const opcao=document.createElement('option'); opcao.value=p.id; opcao.textContent=nome(p); foco.append(opcao) })
+        const resultado = await getDocs(query(collection(db, 'pessoas'), orderBy('nome')))
+        pessoas = resultado.docs.map(doc => ({id: doc.id, ...doc.data()}))
+        pessoas.forEach(p => {
+          const opcao = document.createElement('option')
+          opcao.value = p.id
+          opcao.textContent = nome(p)
+          foco.append(opcao)
+        })
         renderizar()
-      } catch { status.textContent='Erro ao carregar a árvore.' }
+      } catch {
+        status.textContent = 'Erro ao carregar a árvore.'
+      }
     })
+
     foco.addEventListener('change', renderizar)
-    document.querySelector('#sair').addEventListener('click', async () => { await signOut(auth); location.href='/' })
+    document.querySelector('#sair').addEventListener('click', async () => { await signOut(auth); location.href = '/' })
     document.querySelector('#imprimir').addEventListener('click', () => window.print())
   </script>
 </body>
