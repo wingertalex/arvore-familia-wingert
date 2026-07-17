@@ -42,12 +42,21 @@ function criarNucleos() {
 
   nucleos.forEach(nucleo => {
     nucleo.parceiros.forEach(filho => {
+      const paisPorNucleo = new Map()
+
       ;[filho.paiId, filho.maeId].filter(Boolean).forEach(parentId => {
         const paiNucleo = pessoaParaNucleo.get(parentId)
         if (!paiNucleo || paiNucleo.id === nucleo.id) return
+        paisPorNucleo.set(paiNucleo.id, paiNucleo)
+      })
+
+      paisPorNucleo.forEach(paiNucleo => {
         nucleo.pais.add(paiNucleo.id)
         paiNucleo.filhos.add(nucleo.id)
-        nucleo.ligacoesPais.push({paiPessoaId: parentId, filhoPessoaId: filho.id})
+        nucleo.ligacoesPais.push({
+          paiNucleoId: paiNucleo.id,
+          filhoPessoaId: filho.id,
+        })
       })
     })
   })
@@ -115,12 +124,21 @@ function desenharLinhas() {
   svg.innerHTML = ''
   const canvasRect = canvas.getBoundingClientRect()
   const membros = new Map([...document.querySelectorAll('.membro')].map(elemento => [elemento.dataset.pessoaId, elemento]))
+  const nucleosEl = new Map([...document.querySelectorAll('.nucleo')].map(elemento => [elemento.dataset.id, elemento]))
 
   nucleosVisiveis.forEach(nucleo => {
+    const ligacoesUnicas = new Map()
+
     nucleo.ligacoesPais.forEach(ligacao => {
-      const paiEl = membros.get(ligacao.paiPessoaId)
+      const chave = `${ligacao.paiNucleoId}->${ligacao.filhoPessoaId}`
+      ligacoesUnicas.set(chave, ligacao)
+    })
+
+    ligacoesUnicas.forEach(ligacao => {
+      const paiEl = nucleosEl.get(ligacao.paiNucleoId)
       const filhoEl = membros.get(ligacao.filhoPessoaId)
       if (!paiEl || !filhoEl) return
+
       const pai = paiEl.getBoundingClientRect()
       const filho = filhoEl.getBoundingClientRect()
       const origemX = pai.left + pai.width / 2 - canvasRect.left
@@ -128,6 +146,7 @@ function desenharLinhas() {
       const destinoX = filho.left + filho.width / 2 - canvasRect.left
       const destinoY = filho.top - canvasRect.top
       const meioY = origemY + (destinoY - origemY) * 0.52
+
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       path.setAttribute('d', `M ${origemX} ${origemY} V ${meioY} H ${destinoX} V ${destinoY}`)
       path.setAttribute('fill', 'none')
