@@ -67,6 +67,13 @@ export default function EditorFlow() {
 
   const porId = useCallback((id?: string) => pessoas.find(p => p.id === id), [pessoas])
 
+  const recarregarPessoas = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, 'pessoas'), orderBy('nome')))
+    const lista = snap.docs.map(d => ({id: d.id, ...d.data()} as Pessoa))
+    setPessoas(lista)
+    return lista
+  }, [])
+
   const parentesDiretos = useMemo(() => {
     const p = porId(selecionado)
     if (!p) return pessoas
@@ -83,9 +90,9 @@ export default function EditorFlow() {
     const resultado: Edge[] = []
     pessoas.forEach(p => {
       if (!visiveis.has(p.id)) return
-      if (p.paiId && visiveis.has(p.paiId)) resultado.push({id: `pai-${p.paiId}-${p.id}`, source: p.paiId, target: p.id, sourceHandle: 'filhos', targetHandle: 'pais', type: 'smoothstep', style: {stroke: '#4f7b66', strokeWidth: 3}})
-      if (p.maeId && visiveis.has(p.maeId)) resultado.push({id: `mae-${p.maeId}-${p.id}`, source: p.maeId, target: p.id, sourceHandle: 'filhos', targetHandle: 'pais', type: 'smoothstep', style: {stroke: '#7b5f8d', strokeWidth: 3}})
-      if (p.conjugeId && visiveis.has(p.conjugeId) && p.id < p.conjugeId) resultado.push({id: `conjuge-${p.id}-${p.conjugeId}`, source: p.id, target: p.conjugeId, sourceHandle: 'conjuge-direita', targetHandle: 'conjuge-esquerda', type: 'straight', style: {stroke: '#9a6b5a', strokeWidth: 3}})
+      if (p.paiId && visiveis.has(p.paiId)) resultado.push({id: `pai-${p.paiId}-${p.id}`, source: p.paiId, target: p.id, sourceHandle: 'filhos', targetHandle: 'pais', type: 'smoothstep', interactionWidth: 24, style: {stroke: '#4f7b66', strokeWidth: 3}})
+      if (p.maeId && visiveis.has(p.maeId)) resultado.push({id: `mae-${p.maeId}-${p.id}`, source: p.maeId, target: p.id, sourceHandle: 'filhos', targetHandle: 'pais', type: 'smoothstep', interactionWidth: 24, style: {stroke: '#7b5f8d', strokeWidth: 3}})
+      if (p.conjugeId && visiveis.has(p.conjugeId) && p.id < p.conjugeId) resultado.push({id: `conjuge-${p.id}-${p.conjugeId}`, source: p.id, target: p.conjugeId, sourceHandle: 'conjuge-direita', targetHandle: 'conjuge-esquerda', type: 'straight', interactionWidth: 24, style: {stroke: '#9a6b5a', strokeWidth: 3}})
     })
     return resultado
   }, [nodes, pessoas])
@@ -96,9 +103,7 @@ export default function EditorFlow() {
       return
     }
     try {
-      const snap = await getDocs(query(collection(db, 'pessoas'), orderBy('nome')))
-      const lista = snap.docs.map(d => ({id: d.id, ...d.data()} as Pessoa))
-      setPessoas(lista)
+      const lista = await recarregarPessoas()
       const desenho = await getDoc(doc(db, 'diagramas', 'arvore-principal'))
       const dados = desenho.exists() ? desenho.data() : {}
       const posicoes = (dados.posicoes || {}) as Record<string, {x: number; y: number}>
@@ -116,7 +121,7 @@ export default function EditorFlow() {
       console.error(error)
       setStatus('Erro ao carregar o editor.')
     }
-  }), [fitView])
+  }), [fitView, recarregarPessoas])
 
   useEffect(() => {
     setNodes(atuais => atuais.map(n => ({...n, data: {pessoa: porId(n.id) || n.data.pessoa}})))
@@ -154,37 +159,17 @@ export default function EditorFlow() {
       }
       if (tipo === 'filho') batch.update(doc(db, 'pessoas', outro.id), {[alvo.sexo === 'Feminino' ? 'maeId' : 'paiId']: alvo.id, atualizadoEm: serverTimestamp()})
       if (tipo === 'irmao') {
-        const paiCompartilhado = alvo.paiId && alvo.paiId !== outro.id
-          ? alvo.paiId
-          : outro.paiId && outro.paiId !== alvo.id
-            ? outro.paiId
-            : ''
-        const maeCompartilhada = alvo.maeId && alvo.maeId !== outro.id
-          ? alvo.maeId
-          : outro.maeId && outro.maeId !== alvo.id
-            ? outro.maeId
-            : ''
-
+        const paiCompartilhado = alvo.paiId && alvo.paiId !== outro.id ? alvo.paiId : outro.paiId && outro.paiId !== alvo.id ? outro.paiId : ''
+        const maeCompartilhada = alvo.maeId && alvo.maeId !== outro.id ? alvo.maeId : outro.maeId && outro.maeId !== alvo.id ? outro.maeId : ''
         if (!paiCompartilhado && !maeCompartilhada) {
           setStatus('Defina primeiro ao menos um pai ou uma mãe para uma das duas pessoas.')
           return
         }
-
-        batch.update(doc(db, 'pessoas', alvo.id), {
-          paiId: paiCompartilhado,
-          maeId: maeCompartilhada,
-          atualizadoEm: serverTimestamp(),
-        })
-        batch.update(doc(db, 'pessoas', outro.id), {
-          paiId: paiCompartilhado,
-          maeId: maeCompartilhada,
-          atualizadoEm: serverTimestamp(),
-        })
+        batch.update(doc(db, 'pessoas', alvo.id), {paiId: paiCompartilhado, maeId: maeCompartilhada, atualizadoEm: serverTimestamp()})
+        batch.update(doc(db, 'pessoas', outro.id), {paiId: paiCompartilhado, maeId: maeCompartilhada, atualizadoEm: serverTimestamp()})
       }
       await batch.commit()
-      const snap = await getDocs(query(collection(db, 'pessoas'), orderBy('nome')))
-      const lista = snap.docs.map(d => ({id: d.id, ...d.data()} as Pessoa))
-      setPessoas(lista)
+      const lista = await recarregarPessoas()
       if (!nodes.some(n => n.id === outro.id)) {
         const base = nodes.find(n => n.id === alvo.id)
         const pos = base?.position || {x: 200, y: 200}
@@ -193,13 +178,41 @@ export default function EditorFlow() {
           : tipo === 'filho'
             ? {x: pos.x, y: pos.y + 220}
             : {x: pos.x + 300, y: pos.y}
-        setNodes(atuais => [...atuais, {id: outro.id, type: 'pessoa', position: nova, data: {pessoa: outro}}])
+        const pessoaAtualizada = lista.find(p => p.id === outro.id) || outro
+        setNodes(atuais => [...atuais, {id: outro.id, type: 'pessoa', position: nova, data: {pessoa: pessoaAtualizada}}])
       }
       setStatus(tipo === 'irmao' ? 'Vínculo de irmãos corrigido e salvo.' : 'Vínculo salvo.')
       setRelacionarId('')
     } catch (error) {
       console.error(error)
       setStatus('Erro ao salvar o vínculo.')
+    }
+  }
+
+  async function removerLinha(edge: Edge) {
+    const origem = porId(edge.source)
+    const destino = porId(edge.target)
+    if (!origem || !destino) return
+
+    const tipo = edge.id.startsWith('pai-') ? 'pai' : edge.id.startsWith('mae-') ? 'mãe' : 'cônjuge'
+    if (!window.confirm(`Remover o vínculo de ${tipo} entre ${nome(origem)} e ${nome(destino)}?`)) return
+
+    try {
+      const batch = writeBatch(db)
+      if (edge.id.startsWith('pai-')) {
+        batch.update(doc(db, 'pessoas', destino.id), {paiId: '', atualizadoEm: serverTimestamp()})
+      } else if (edge.id.startsWith('mae-')) {
+        batch.update(doc(db, 'pessoas', destino.id), {maeId: '', atualizadoEm: serverTimestamp()})
+      } else {
+        batch.update(doc(db, 'pessoas', origem.id), {conjugeId: '', casada: false, atualizadoEm: serverTimestamp()})
+        batch.update(doc(db, 'pessoas', destino.id), {conjugeId: '', casada: false, atualizadoEm: serverTimestamp()})
+      }
+      await batch.commit()
+      await recarregarPessoas()
+      setStatus('Vínculo removido com sucesso.')
+    } catch (error) {
+      console.error(error)
+      setStatus('Não foi possível remover o vínculo.')
     }
   }
 
@@ -256,6 +269,7 @@ export default function EditorFlow() {
           <section><h2>Adicionar quadro</h2><select value={adicionarId} onChange={e => setAdicionarId(e.target.value)}><option value="">{selecionado ? 'Selecione um parente direto' : 'Selecione uma pessoa'}</option>{parentesDiretos.filter(p => !nodes.some(n => n.id === p.id)).map(p => <option key={p.id} value={p.id}>{nome(p)}</option>)}</select><button onClick={adicionarPessoa}>Adicionar ao desenho</button></section>
           <section><h2>Relacionar com selecionado</h2><select value={relacionarId} onChange={e => setRelacionarId(e.target.value)}><option value="">Selecione outra pessoa</option>{pessoas.filter(p => p.id !== selecionado).map(p => <option key={p.id} value={p.id}>{nome(p)}</option>)}</select><div className="grid-botoes"><button onClick={() => relacionar('pai')}>É pai</button><button onClick={() => relacionar('mae')}>É mãe</button><button onClick={() => relacionar('conjuge')}>É cônjuge</button><button onClick={() => relacionar('filho')}>É filho(a)</button><button onClick={() => relacionar('irmao')}>É irmão(ã)</button><button className="perigo" onClick={() => {setNodes(ns => ns.filter(n => n.id !== selecionado)); setSelecionado('')}}>Remover quadro</button></div></section>
           <section><h2>Organização</h2><div className="grid-botoes"><button onClick={alinharGeracoes}>Alinhar gerações</button><button onClick={() => fitView({padding: 0.2, duration: 400})}>Ajustar à tela</button></div></section>
+          <p className="ajuda">Clique em uma linha para removê-la. A exclusão também corrige o vínculo correspondente no cadastro.</p>
           <p className="status">{status}</p>
         </aside>
         <section className="flow-area">
@@ -265,6 +279,7 @@ export default function EditorFlow() {
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onNodeClick={(_, node) => setSelecionado(node.id)}
+            onEdgeClick={(_, edge) => removerLinha(edge)}
             onPaneClick={() => setSelecionado('')}
             fitView
             minZoom={0.15}
