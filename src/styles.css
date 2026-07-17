@@ -41,7 +41,7 @@ input, select {
   background: #fff;
   color: #183028;
 }
-input:disabled { background: #efede7; color: #8a918e; }
+input:disabled, select:disabled { background: #efede7; color: #8a918e; }
 input:focus, select:focus { outline: 3px solid rgba(111,127,67,.18); border-color: #6f7f43; }
 button {
   border: 0;
@@ -66,16 +66,35 @@ header {
 header h1 { margin: 4px 0 0; font-size: 1.7rem; }
 .secundario { background: transparent; border: 1px solid rgba(255,255,255,.5); }
 .conteudo {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1280px, calc(100% - 32px));
   margin: 32px auto;
   display: grid;
-  grid-template-columns: minmax(320px, .9fr) minmax(360px, 1.1fr);
+  grid-template-columns: minmax(420px, 1fr) minmax(380px, 1fr);
   gap: 24px;
+  align-items: start;
 }
 .painel { padding: 24px; }
 .grade { grid-template-columns: 1fr 1fr; }
 .checkbox { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
 .checkbox input { width: auto; }
+.campo-largo { grid-column: 1 / -1; }
+.grupo-vinculo {
+  min-width: 0;
+  border: 1px solid #d8d3c8;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  background: #faf8f2;
+}
+.grupo-vinculo legend { padding: 0 7px; font-weight: 800; color: #405747; }
+.grupo-vinculo .checkbox { grid-column: auto; }
+.cadastro-rapido {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px dashed #d8d3c8;
+}
 .acoes-formulario { grid-column: 1 / -1; display: flex; gap: 10px; }
 .acoes-formulario button { flex: 1; }
 .botao-neutro { background: #e8e5dd; color: #3f4c47; }
@@ -99,9 +118,13 @@ header h1 { margin: 4px 0 0; font-size: 1.7rem; }
 .botao-editar { background: #52663d; }
 .botao-excluir { background: #a33a3a; }
 
-@media (max-width: 780px) {
+@media (max-width: 900px) {
   .conteudo { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
   .grade { grid-template-columns: 1fr; }
+  .grupo-vinculo, .campo-largo, .checkbox, .acoes-formulario { grid-column: 1; }
   header { align-items: flex-start; }
   .lista article { align-items: flex-start; flex-direction: column; }
   .acoes-pessoa { width: 100%; }
