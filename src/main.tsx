@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+import App from './AppSexo'
 import './styles.css'
 
 const visualizandoArvore = new URLSearchParams(window.location.search).get('view') === 'tree'
