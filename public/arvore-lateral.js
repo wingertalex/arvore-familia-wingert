@@ -48,14 +48,10 @@ function criarNucleos() {
         if (!paiNucleo || paiNucleo.id === nucleo.id) return
         paisPorNucleo.set(paiNucleo.id, paiNucleo)
       })
-
       paisPorNucleo.forEach(paiNucleo => {
         nucleo.pais.add(paiNucleo.id)
         paiNucleo.filhos.add(nucleo.id)
-        nucleo.ligacoesPais.push({
-          paiNucleoId: paiNucleo.id,
-          filhoPessoaId: filho.id,
-        })
+        nucleo.ligacoesPais.push({paiNucleoId: paiNucleo.id, filhoPessoaId: filho.id})
       })
     })
   })
@@ -84,7 +80,6 @@ function calcularGeracoes(nucleos) {
   const mapa = new Map(nucleos.map(nucleo => [nucleo.id, nucleo]))
   nucleos.forEach(nucleo => { nucleo.geracao = 0 })
 
-  // Primeiro calcula a maior profundidade conhecida de cada núcleo.
   for (let tentativa = 0; tentativa < nucleos.length + 3; tentativa++) {
     let mudou = false
     nucleos.forEach(nucleo => {
@@ -98,23 +93,19 @@ function calcularGeracoes(nucleos) {
     if (!mudou) break
   }
 
-  // Depois sobe famílias com ancestralidade ainda desconhecida para que todo
-  // pai ou mãe fique exatamente uma geração acima do filho correspondente.
   for (let tentativa = 0; tentativa < nucleos.length + 3; tentativa++) {
     let mudou = false
-    ;[...nucleos]
-      .sort((a, b) => b.geracao - a.geracao)
-      .forEach(filho => {
-        filho.pais.forEach(paiId => {
-          const pai = mapa.get(paiId)
-          if (!pai) return
-          const geracaoEsperada = Math.max(0, filho.geracao - 1)
-          if (pai.geracao < geracaoEsperada) {
-            pai.geracao = geracaoEsperada
-            mudou = true
-          }
-        })
+    ;[...nucleos].sort((a, b) => b.geracao - a.geracao).forEach(filho => {
+      filho.pais.forEach(paiId => {
+        const pai = mapa.get(paiId)
+        if (!pai) return
+        const esperada = Math.max(0, filho.geracao - 1)
+        if (pai.geracao < esperada) {
+          pai.geracao = esperada
+          mudou = true
+        }
       })
+    })
     if (!mudou) break
   }
 }
@@ -141,41 +132,64 @@ function criarCartao(nucleo) {
   return artigo
 }
 
+function criarPath(d) {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', d)
+  path.setAttribute('fill', 'none')
+  path.setAttribute('stroke', '#789084')
+  path.setAttribute('stroke-width', '2')
+  path.setAttribute('stroke-linejoin', 'round')
+  path.setAttribute('stroke-linecap', 'round')
+  svg.append(path)
+}
+
 function desenharLinhas() {
   svg.innerHTML = ''
   const canvasRect = canvas.getBoundingClientRect()
-  const membros = new Map([...document.querySelectorAll('.membro')].map(elemento => [elemento.dataset.pessoaId, elemento]))
-  const nucleosEl = new Map([...document.querySelectorAll('.nucleo')].map(elemento => [elemento.dataset.id, elemento]))
+  const membros = new Map([...document.querySelectorAll('.membro')].map(el => [el.dataset.pessoaId, el]))
+  const nucleosEl = new Map([...document.querySelectorAll('.nucleo')].map(el => [el.dataset.id, el]))
 
+  const grupos = new Map()
   nucleosVisiveis.forEach(nucleo => {
-    const ligacoesUnicas = new Map()
     nucleo.ligacoesPais.forEach(ligacao => {
       const chave = `${ligacao.paiNucleoId}->${ligacao.filhoPessoaId}`
-      ligacoesUnicas.set(chave, ligacao)
+      if (!grupos.has(ligacao.paiNucleoId)) grupos.set(ligacao.paiNucleoId, new Map())
+      grupos.get(ligacao.paiNucleoId).set(chave, ligacao)
     })
+  })
 
-    ligacoesUnicas.forEach(ligacao => {
-      const paiEl = nucleosEl.get(ligacao.paiNucleoId)
-      const filhoEl = membros.get(ligacao.filhoPessoaId)
-      if (!paiEl || !filhoEl) return
-
-      const pai = paiEl.getBoundingClientRect()
-      const filho = filhoEl.getBoundingClientRect()
-      const origemX = pai.left + pai.width / 2 - canvasRect.left
-      const origemY = pai.bottom - canvasRect.top
-      const destinoX = filho.left + filho.width / 2 - canvasRect.left
-      const destinoY = filho.top - canvasRect.top
-      const meioY = origemY + Math.max(28, (destinoY - origemY) * 0.5)
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      path.setAttribute('d', `M ${origemX} ${origemY} V ${meioY} H ${destinoX} V ${destinoY}`)
-      path.setAttribute('fill', 'none')
-      path.setAttribute('stroke', '#789084')
-      path.setAttribute('stroke-width', '2')
-      path.setAttribute('stroke-linejoin', 'round')
-      path.setAttribute('stroke-linecap', 'round')
-      svg.append(path)
+  const gruposOrdenados = [...grupos.entries()]
+    .map(([paiNucleoId, ligacoes]) => {
+      const paiEl = nucleosEl.get(paiNucleoId)
+      if (!paiEl) return null
+      const rect = paiEl.getBoundingClientRect()
+      return {paiNucleoId, ligacoes: [...ligacoes.values()], paiEl, origemX: rect.left + rect.width / 2 - canvasRect.left, origemY: rect.bottom - canvasRect.top}
     })
+    .filter(Boolean)
+    .sort((a, b) => a.origemX - b.origemX)
+
+  gruposOrdenados.forEach((grupo, indiceGrupo) => {
+    const destinos = grupo.ligacoes.map(ligacao => {
+      const el = membros.get(ligacao.filhoPessoaId)
+      if (!el) return null
+      const rect = el.getBoundingClientRect()
+      return {
+        x: rect.left + rect.width / 2 - canvasRect.left,
+        y: rect.top - canvasRect.top,
+      }
+    }).filter(Boolean)
+
+    if (!destinos.length) return
+
+    const menorDestinoY = Math.min(...destinos.map(destino => destino.y))
+    const espaco = Math.max(56, menorDestinoY - grupo.origemY)
+    const corredorY = grupo.origemY + Math.min(espaco - 24, 28 + indiceGrupo * 18)
+    const minX = Math.min(grupo.origemX, ...destinos.map(destino => destino.x))
+    const maxX = Math.max(grupo.origemX, ...destinos.map(destino => destino.x))
+
+    criarPath(`M ${grupo.origemX} ${grupo.origemY} V ${corredorY}`)
+    if (maxX > minX) criarPath(`M ${minX} ${corredorY} H ${maxX}`)
+    destinos.forEach(destino => criarPath(`M ${destino.x} ${corredorY} V ${destino.y}`))
   })
 }
 
@@ -200,10 +214,8 @@ function renderizar() {
   for (let geracao = 0; geracao <= maxGeracao; geracao++) {
     const linha = document.createElement('section')
     linha.className = 'geracao'
-    ordenarNucleosDaGeracao(
-      nucleosVisiveis.filter(nucleo => nucleo.geracao === geracao),
-      mapa,
-    ).forEach(nucleo => linha.append(criarCartao(nucleo)))
+    ordenarNucleosDaGeracao(nucleosVisiveis.filter(nucleo => nucleo.geracao === geracao), mapa)
+      .forEach(nucleo => linha.append(criarCartao(nucleo)))
     if (linha.children.length) geracoesEl.append(linha)
   }
 
