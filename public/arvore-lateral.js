@@ -43,7 +43,6 @@ function criarNucleos() {
   nucleos.forEach(nucleo => {
     nucleo.parceiros.forEach(filho => {
       const paisPorNucleo = new Map()
-
       ;[filho.paiId, filho.maeId].filter(Boolean).forEach(parentId => {
         const paiNucleo = pessoaParaNucleo.get(parentId)
         if (!paiNucleo || paiNucleo.id === nucleo.id) return
@@ -84,16 +83,38 @@ function filtrarComponente(base) {
 function calcularGeracoes(nucleos) {
   const mapa = new Map(nucleos.map(nucleo => [nucleo.id, nucleo]))
   nucleos.forEach(nucleo => { nucleo.geracao = 0 })
+
+  // Primeiro calcula a maior profundidade conhecida de cada núcleo.
   for (let tentativa = 0; tentativa < nucleos.length + 3; tentativa++) {
     let mudou = false
     nucleos.forEach(nucleo => {
       const pais = [...nucleo.pais].map(id => mapa.get(id)).filter(Boolean)
       const nova = pais.length ? Math.max(...pais.map(pai => pai.geracao)) + 1 : 0
-      if (nova !== nucleo.geracao) {
+      if (nova > nucleo.geracao) {
         nucleo.geracao = nova
         mudou = true
       }
     })
+    if (!mudou) break
+  }
+
+  // Depois sobe famílias com ancestralidade ainda desconhecida para que todo
+  // pai ou mãe fique exatamente uma geração acima do filho correspondente.
+  for (let tentativa = 0; tentativa < nucleos.length + 3; tentativa++) {
+    let mudou = false
+    ;[...nucleos]
+      .sort((a, b) => b.geracao - a.geracao)
+      .forEach(filho => {
+        filho.pais.forEach(paiId => {
+          const pai = mapa.get(paiId)
+          if (!pai) return
+          const geracaoEsperada = Math.max(0, filho.geracao - 1)
+          if (pai.geracao < geracaoEsperada) {
+            pai.geracao = geracaoEsperada
+            mudou = true
+          }
+        })
+      })
     if (!mudou) break
   }
 }
@@ -128,7 +149,6 @@ function desenharLinhas() {
 
   nucleosVisiveis.forEach(nucleo => {
     const ligacoesUnicas = new Map()
-
     nucleo.ligacoesPais.forEach(ligacao => {
       const chave = `${ligacao.paiNucleoId}->${ligacao.filhoPessoaId}`
       ligacoesUnicas.set(chave, ligacao)
@@ -145,7 +165,7 @@ function desenharLinhas() {
       const origemY = pai.bottom - canvasRect.top
       const destinoX = filho.left + filho.width / 2 - canvasRect.left
       const destinoY = filho.top - canvasRect.top
-      const meioY = origemY + (destinoY - origemY) * 0.52
+      const meioY = origemY + Math.max(28, (destinoY - origemY) * 0.5)
 
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       path.setAttribute('d', `M ${origemX} ${origemY} V ${meioY} H ${destinoX} V ${destinoY}`)
@@ -159,20 +179,31 @@ function desenharLinhas() {
   })
 }
 
+function ordenarNucleosDaGeracao(lista, mapa) {
+  return [...lista].sort((a, b) => {
+    const filhosA = [...a.filhos].map(id => mapa.get(id)).filter(Boolean)
+    const filhosB = [...b.filhos].map(id => mapa.get(id)).filter(Boolean)
+    const alvoA = filhosA.length ? Math.min(...filhosA.map(filho => nome(filho.parceiros[0]).charCodeAt(0))) : 999
+    const alvoB = filhosB.length ? Math.min(...filhosB.map(filho => nome(filho.parceiros[0]).charCodeAt(0))) : 999
+    return alvoA - alvoB || nome(a.parceiros[0]).localeCompare(nome(b.parceiros[0]))
+  })
+}
+
 function renderizar() {
   geracoesEl.innerHTML = ''
   const base = criarNucleos()
   nucleosVisiveis = filtrarComponente(base)
   calcularGeracoes(nucleosVisiveis)
+  const mapa = new Map(nucleosVisiveis.map(nucleo => [nucleo.id, nucleo]))
   const maxGeracao = nucleosVisiveis.length ? Math.max(...nucleosVisiveis.map(nucleo => nucleo.geracao)) : 0
 
   for (let geracao = 0; geracao <= maxGeracao; geracao++) {
     const linha = document.createElement('section')
     linha.className = 'geracao'
-    nucleosVisiveis
-      .filter(nucleo => nucleo.geracao === geracao)
-      .sort((a, b) => nome(a.parceiros[0]).localeCompare(nome(b.parceiros[0])))
-      .forEach(nucleo => linha.append(criarCartao(nucleo)))
+    ordenarNucleosDaGeracao(
+      nucleosVisiveis.filter(nucleo => nucleo.geracao === geracao),
+      mapa,
+    ).forEach(nucleo => linha.append(criarCartao(nucleo)))
     if (linha.children.length) geracoesEl.append(linha)
   }
 
