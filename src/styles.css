@@ -10,6 +10,7 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: wait; opacity: .65; }
+a { color: inherit; }
 
 .login-page, .centralizado {
   min-height: 100vh;
@@ -27,7 +28,7 @@ button:disabled { cursor: wait; opacity: .65; }
 }
 
 .login-card { width: min(100%, 460px); padding: 36px; }
-.marca { color: #6f7f43; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+.marca { color: #93a45d; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
 h1 { margin: 8px 0; font-size: clamp(1.8rem, 4vw, 2.8rem); }
 h2 { margin-top: 0; }
 p { color: #63716b; }
@@ -43,15 +44,19 @@ input, select {
 }
 input:disabled, select:disabled { background: #efede7; color: #8a918e; }
 input:focus, select:focus { outline: 3px solid rgba(111,127,67,.18); border-color: #6f7f43; }
-button {
+button, .botao-link {
   border: 0;
   border-radius: 10px;
   padding: 12px 18px;
   background: #214c3b;
   color: #fff;
   font-weight: 800;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-button:hover:not(:disabled) { filter: brightness(1.08); }
+button:hover:not(:disabled), .botao-link:hover { filter: brightness(1.08); }
 .erro { color: #a33333; font-weight: 700; }
 
 header {
@@ -64,6 +69,7 @@ header {
   color: #fff;
 }
 header h1 { margin: 4px 0 0; font-size: 1.7rem; }
+.acoes-cabecalho { display: flex; gap: 10px; flex-wrap: wrap; }
 .secundario { background: transparent; border: 1px solid rgba(255,255,255,.5); }
 .conteudo {
   width: min(1280px, calc(100% - 32px));
@@ -118,6 +124,85 @@ header h1 { margin: 4px 0 0; font-size: 1.7rem; }
 .botao-editar { background: #52663d; }
 .botao-excluir { background: #a33a3a; }
 
+.pagina-arvore { min-height: 100vh; background: #f4f1e8; }
+.area-arvore {
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 52px;
+  overflow-x: auto;
+}
+.ramo-arvore {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: max-content;
+}
+.casal-arvore {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.no-arvore {
+  width: 210px;
+  min-height: 92px;
+  border: 2px solid #56705e;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(31, 56, 43, .1);
+}
+.no-arvore strong { font-size: .95rem; }
+.no-arvore span { color: #6a7771; font-size: .78rem; }
+.no-arvore.conjuge { border-color: #8c7456; }
+.uniao { color: #8b554f; font-size: 1.2rem; font-weight: 800; }
+.aviso-ciclo { color: #a33333; border-color: #a33333; }
+.descendentes {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 30px;
+  padding-top: 46px;
+  margin-top: 18px;
+}
+.descendentes::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 28px;
+  background: #78907f;
+}
+.descendentes > .ramo-arvore::before {
+  content: '';
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  width: 2px;
+  height: 46px;
+  background: #78907f;
+}
+.descendentes > .ramo-arvore:not(:only-child)::after {
+  content: '';
+  position: absolute;
+  top: -46px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #78907f;
+}
+.descendentes > .ramo-arvore:first-child::after { left: 50%; }
+.descendentes > .ramo-arvore:last-child::after { right: 50%; }
+
 @media (max-width: 900px) {
   .conteudo { grid-template-columns: 1fr; }
 }
@@ -125,8 +210,11 @@ header h1 { margin: 4px 0 0; font-size: 1.7rem; }
 @media (max-width: 620px) {
   .grade { grid-template-columns: 1fr; }
   .grupo-vinculo, .campo-largo, .checkbox, .acoes-formulario { grid-column: 1; }
-  header { align-items: flex-start; }
+  header { align-items: flex-start; flex-direction: column; }
+  .acoes-cabecalho { width: 100%; }
+  .acoes-cabecalho > * { flex: 1; }
   .lista article { align-items: flex-start; flex-direction: column; }
   .acoes-pessoa { width: 100%; }
   .acoes-pessoa button { flex: 1; }
+  .area-arvore { align-items: flex-start; padding: 24px 16px; }
 }
