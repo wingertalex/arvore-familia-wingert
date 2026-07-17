@@ -14,7 +14,7 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import {onAuthStateChanged} from 'firebase/auth'
-import {collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, writeBatch} from 'firebase/firestore'
+import {collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, writeBatch} from 'firebase/firestore'
 import {auth, db} from './firebase'
 
 type Pessoa = {
@@ -153,7 +153,34 @@ export default function EditorFlow() {
         batch.update(doc(db, 'pessoas', outro.id), {conjugeId: alvo.id, casada: true, atualizadoEm: serverTimestamp()})
       }
       if (tipo === 'filho') batch.update(doc(db, 'pessoas', outro.id), {[alvo.sexo === 'Feminino' ? 'maeId' : 'paiId']: alvo.id, atualizadoEm: serverTimestamp()})
-      if (tipo === 'irmao') batch.update(doc(db, 'pessoas', outro.id), {paiId: alvo.paiId || '', maeId: alvo.maeId || '', atualizadoEm: serverTimestamp()})
+      if (tipo === 'irmao') {
+        const paiCompartilhado = alvo.paiId && alvo.paiId !== outro.id
+          ? alvo.paiId
+          : outro.paiId && outro.paiId !== alvo.id
+            ? outro.paiId
+            : ''
+        const maeCompartilhada = alvo.maeId && alvo.maeId !== outro.id
+          ? alvo.maeId
+          : outro.maeId && outro.maeId !== alvo.id
+            ? outro.maeId
+            : ''
+
+        if (!paiCompartilhado && !maeCompartilhada) {
+          setStatus('Defina primeiro ao menos um pai ou uma mãe para uma das duas pessoas.')
+          return
+        }
+
+        batch.update(doc(db, 'pessoas', alvo.id), {
+          paiId: paiCompartilhado,
+          maeId: maeCompartilhada,
+          atualizadoEm: serverTimestamp(),
+        })
+        batch.update(doc(db, 'pessoas', outro.id), {
+          paiId: paiCompartilhado,
+          maeId: maeCompartilhada,
+          atualizadoEm: serverTimestamp(),
+        })
+      }
       await batch.commit()
       const snap = await getDocs(query(collection(db, 'pessoas'), orderBy('nome')))
       const lista = snap.docs.map(d => ({id: d.id, ...d.data()} as Pessoa))
@@ -168,7 +195,7 @@ export default function EditorFlow() {
             : {x: pos.x + 300, y: pos.y}
         setNodes(atuais => [...atuais, {id: outro.id, type: 'pessoa', position: nova, data: {pessoa: outro}}])
       }
-      setStatus('Vínculo salvo.')
+      setStatus(tipo === 'irmao' ? 'Vínculo de irmãos corrigido e salvo.' : 'Vínculo salvo.')
       setRelacionarId('')
     } catch (error) {
       console.error(error)
@@ -229,7 +256,6 @@ export default function EditorFlow() {
           <section><h2>Adicionar quadro</h2><select value={adicionarId} onChange={e => setAdicionarId(e.target.value)}><option value="">{selecionado ? 'Selecione um parente direto' : 'Selecione uma pessoa'}</option>{parentesDiretos.filter(p => !nodes.some(n => n.id === p.id)).map(p => <option key={p.id} value={p.id}>{nome(p)}</option>)}</select><button onClick={adicionarPessoa}>Adicionar ao desenho</button></section>
           <section><h2>Relacionar com selecionado</h2><select value={relacionarId} onChange={e => setRelacionarId(e.target.value)}><option value="">Selecione outra pessoa</option>{pessoas.filter(p => p.id !== selecionado).map(p => <option key={p.id} value={p.id}>{nome(p)}</option>)}</select><div className="grid-botoes"><button onClick={() => relacionar('pai')}>É pai</button><button onClick={() => relacionar('mae')}>É mãe</button><button onClick={() => relacionar('conjuge')}>É cônjuge</button><button onClick={() => relacionar('filho')}>É filho(a)</button><button onClick={() => relacionar('irmao')}>É irmão(ã)</button><button className="perigo" onClick={() => {setNodes(ns => ns.filter(n => n.id !== selecionado)); setSelecionado('')}}>Remover quadro</button></div></section>
           <section><h2>Organização</h2><div className="grid-botoes"><button onClick={alinharGeracoes}>Alinhar gerações</button><button onClick={() => fitView({padding: 0.2, duration: 400})}>Ajustar à tela</button></div></section>
-          <p className="ajuda">Arraste os quadros livremente. O espaço é infinito e as linhas acompanham os nós automaticamente.</p>
           <p className="status">{status}</p>
         </aside>
         <section className="flow-area">
@@ -241,11 +267,10 @@ export default function EditorFlow() {
             onNodeClick={(_, node) => setSelecionado(node.id)}
             onPaneClick={() => setSelecionado('')}
             fitView
-            minZoom={0.2}
-            maxZoom={1.8}
-            deleteKeyCode={null}
+            minZoom={0.15}
+            maxZoom={2}
           >
-            <Background gap={32} size={1} />
+            <Background gap={28} size={1} />
             <MiniMap pannable zoomable />
             <Controls />
           </ReactFlow>
