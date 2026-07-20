@@ -4,16 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#173b2c" />
-    <meta name="description" content="Cadastro e visualização da árvore genealógica da Família Wingert" />
-    <title>Árvore da Família Wingert</title>
-    <script>
-      if (new URLSearchParams(window.location.search).get('view') === 'tree') {
-        window.location.replace('/arvore-lateral.html')
-      }
-    </script>
+    <meta name="description" content="Projeto Raízes Wingert — preservando a história da família para as próximas gerações." />
+    <title>Projeto Raízes Wingert</title>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="portal-root"></div>
+    <script type="module" src="/src/portal-main.tsx"></script>
   </body>
 </html>
