@@ -4,7 +4,7 @@ import './portal.css'
 
 const links = [
   {href: '/arvore-lateral.html', label: 'Explorar a árvore', description: 'Navegue pelas gerações e vínculos familiares.'},
-  {href: '/editor.html', label: 'Abrir o editor', description: 'Área reservada para cadastrar e atualizar informações.'},
+  {href: '/cadastro.html', label: 'Cadastrar pessoas', description: 'Área reservada para cadastrar e atualizar informações da família.'},
   {href: '#historia', label: 'Conhecer o projeto', description: 'Entenda o propósito de preservar a memória da família.'},
 ]
 
@@ -23,7 +23,7 @@ function PortalHome() {
           <a href="#inicio">Início</a>
           <a href="/arvore-lateral.html">Árvore</a>
           <a href="#historia">Sobre</a>
-          <a className="nav-cta" href="/editor.html">Editor</a>
+          <a className="nav-cta" href="/cadastro.html">Cadastro</a>
         </nav>
       </header>
 
@@ -37,7 +37,7 @@ function PortalHome() {
             </p>
             <div className="hero-actions">
               <a className="button primary" href="/arvore-lateral.html">Explorar a árvore</a>
-              <a className="button secondary" href="/editor.html">Entrar no editor</a>
+              <a className="button secondary" href="/cadastro.html">Cadastrar pessoas</a>
             </div>
           </div>
 
