@@ -12,7 +12,7 @@ function PortalHome() {
   return (
     <div className="portal-shell">
       <header className="portal-header">
-        <a className="brand" href="/portal.html" aria-label="Página inicial do Projeto Raízes Wingert">
+        <a className="brand" href="/" aria-label="Página inicial do Projeto Raízes Wingert">
           <span className="brand-mark" aria-hidden="true">W</span>
           <span>
             <strong>Raízes Wingert</strong>
