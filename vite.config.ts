@@ -9,6 +9,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         editor: resolve(__dirname, 'editor.html'),
+        portal: resolve(__dirname, 'portal.html'),
+        cadastro: resolve(__dirname, 'cadastro.html'),
       },
     },
   },
