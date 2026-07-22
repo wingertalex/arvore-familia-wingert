@@ -12,6 +12,7 @@ export default defineConfig({
         portal: resolve(__dirname, 'portal.html'),
         cadastro: resolve(__dirname, 'cadastro.html'),
         arvorePublica: resolve(__dirname, 'arvore-publica.html'),
+        arvoreDesenhada: resolve(__dirname, 'arvore-desenhada.html'),
       },
     },
   },
