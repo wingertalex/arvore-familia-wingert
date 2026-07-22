@@ -11,6 +11,7 @@ export default defineConfig({
         editor: resolve(__dirname, 'editor.html'),
         portal: resolve(__dirname, 'portal.html'),
         cadastro: resolve(__dirname, 'cadastro.html'),
+        arvorePublica: resolve(__dirname, 'arvore-publica.html'),
       },
     },
   },
