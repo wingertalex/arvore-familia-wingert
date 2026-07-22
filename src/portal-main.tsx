@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './portal.css'
 
 const links = [
-  {href: '/arvore-lateral.html', label: 'Explorar a árvore', description: 'Navegue pelas gerações e vínculos familiares.'},
+  {href: '/arvore-publica.html', label: 'Explorar a árvore', description: 'Navegue pelas pessoas e vínculos familiares em modo público.'},
   {href: '/cadastro.html', label: 'Cadastrar pessoas', description: 'Área reservada para cadastrar e atualizar informações da família.'},
   {href: '#historia', label: 'Conhecer o projeto', description: 'Entenda o propósito de preservar a memória da família.'},
 ]
@@ -21,7 +21,7 @@ function PortalHome() {
         </a>
         <nav aria-label="Navegação principal">
           <a href="#inicio">Início</a>
-          <a href="/arvore-lateral.html">Árvore</a>
+          <a href="/arvore-publica.html">Árvore</a>
           <a href="#historia">Sobre</a>
           <a className="nav-cta" href="/cadastro.html">Cadastro</a>
         </nav>
@@ -36,7 +36,7 @@ function PortalHome() {
               Um espaço criado para reunir nomes, vínculos, datas e memórias que ajudam a contar de onde viemos.
             </p>
             <div className="hero-actions">
-              <a className="button primary" href="/arvore-lateral.html">Explorar a árvore</a>
+              <a className="button primary" href="/arvore-publica.html">Explorar a árvore</a>
               <a className="button secondary" href="/cadastro.html">Cadastrar pessoas</a>
             </div>
           </div>
